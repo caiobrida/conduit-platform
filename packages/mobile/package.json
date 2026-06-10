@@ -2,6 +2,21 @@
   "name": "@org/mobile",
   "version": "0.0.1",
   "private": true,
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "packages/mobile",
+          "command": "expo export"
+        },
+        "outputs": [
+          "{workspaceRoot}/packages/mobile/dist"
+        ],
+        "cache": true
+      }
+    }
+  },
   "scripts": {
     "eas-build-post-install": "cd ../../ && node tools/scripts/eas-build-post-install.mjs . packages/mobile"
   },
