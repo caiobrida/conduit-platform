@@ -1,114 +1,114 @@
 # Conduit
 
-> Plataforma de abertura e acompanhamento de chamados para concessionárias de serviços públicos. O cidadão reporta uma ocorrência pelo celular — um vazamento, falta d'água, um problema de esgoto — e acompanha a resolução em tempo real, como quem rastreia uma encomenda. A operação recebe, tria e resolve a partir de um painel único.
+> A platform for reporting and tracking service requests for public utility companies. Citizens report an issue from their phone — a leak, water outage, sewage problem — and track its resolution in real time, much like tracking a package. The operations team receives, triages, and resolves requests from a single dashboard.
 
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![Nx](https://img.shields.io/badge/Nx-143055?logo=nx&logoColor=white)
-![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white)
-![Expo](https://img.shields.io/badge/Expo-000020?logo=expo&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
-![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript\&logoColor=white)
+![Nx](https://img.shields.io/badge/Nx-143055?logo=nx\&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs\&logoColor=white)
+![Expo](https://img.shields.io/badge/Expo-000020?logo=expo\&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?logo=react\&logoColor=61DAFB)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql\&logoColor=white)
+![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm\&logoColor=white)
 
 ---
 
-## Visão geral
+## Overview
 
-Concessionárias de saneamento (como as SAAEs) e outras utilities raramente oferecem um canal digital decente para o cidadão registrar uma ocorrência. O contato é por telefone, sem protocolo claro, sem foto, sem localização precisa e sem nenhuma visibilidade de andamento.
+Water and sanitation providers, such as SAAEs, and other utilities rarely offer a decent digital channel for citizens to report an issue. Contact usually happens by phone, with no clear protocol number, no photo, no precise location, and no visibility into progress.
 
-O **Conduit** resolve essa lacuna com três peças que conversam entre si:
+**Conduit** fills this gap with three connected components:
 
-- um **app mobile** onde qualquer pessoa abre um chamado com foto, localização e categoria, sem precisar de cadastro;
-- um **painel administrativo** onde a operação acompanha a fila em tempo real, tria e atualiza o status de cada chamado;
-- um **rastreio público** por número de protocolo, com notificações por WhatsApp a cada mudança de status.
+* a **mobile app** where anyone can open a service request with a photo, location, and category, without needing to create an account;
+* an **administrative dashboard** where the operations team monitors the queue in real time, triages requests, and updates the status of each case;
+* **public tracking** by protocol number, with WhatsApp notifications on every status change.
 
-A plataforma nasce **multi-tenant**: embora o primeiro cliente seja uma concessionária de água, a arquitetura já isola dados por tenant, abrindo caminho para atender energia, gás e outros serviços sem reescrita.
+The platform is designed as **multi-tenant** from the start: although the first customer is a water utility, the architecture already isolates data by tenant, making it possible to support electricity, gas, and other services without a rewrite.
 
-## Funcionalidades
+## Features
 
-- **Abertura de chamado sem fricção** — categoria, descrição, foto e geolocalização (GPS + ajuste no mapa). O cidadão não autentica; informa apenas nome e telefone para receber atualizações.
-- **Protocolo rastreável** — número não-enumerável e uma timeline de status visível ao cidadão, no estilo "rastreio de entrega".
-- **Painel em tempo real** — fila de chamados com busca, ordenação e filtros, atualizada ao vivo via WebSocket quando algo chega ou muda.
-- **Notificações por WhatsApp** — a operação é avisada de chamados novos; o cidadão é avisado a cada mudança de status.
-- **Multi-tenant desde o dia 1** — isolamento por `tenant_id` em todas as tabelas, com RLS no banco como segunda camada.
-- **Pensado para escalar** — cache de leitura com Redis, processamento assíncrono com filas e workers, e tempo real desacoplado.
+* **Frictionless service request creation** — category, description, photo, and geolocation (GPS + map adjustment). Citizens do not authenticate; they only provide their name and phone number to receive updates.
+* **Trackable protocol number** — a non-enumerable number and a status timeline visible to the citizen, similar to delivery tracking.
+* **Real-time dashboard** — a service request queue with search, sorting, and filters, updated live through WebSocket whenever something is created or changed.
+* **WhatsApp notifications** — the operations team is notified of new requests; citizens are notified on every status change.
+* **Multi-tenant from day one** — isolation by `tenant_id` across all tables, with database-level RLS as a second layer.
+* **Built to scale** — Redis read-through caching, asynchronous processing with queues and workers, and decoupled real-time updates.
 
-## Arquitetura
+## Architecture
 
-Monorepo gerenciado com **Nx** e **pnpm**, inteiramente em TypeScript.
+Monorepo managed with **Nx** and **pnpm**, entirely written in TypeScript.
 
-| Camada | Tecnologia |
-|---|---|
-| API | NestJS · Prisma · Swagger |
-| Banco de dados | PostgreSQL + PostGIS (via Supabase) |
-| Armazenamento de imagens | Supabase Storage (bucket privado) |
-| Cache | Redis (cache-aside) |
-| Mensageria / filas | RabbitMQ + workers |
-| Tempo real | WebSocket (socket.io) |
-| Notificações | Meta WhatsApp Cloud API |
-| App do cidadão | Expo + Expo Router (sem login) |
-| Painel administrativo | Refine (React + Vite) |
-| Autenticação (admin) | Clerk |
-| Tipos & validação compartilhados | biblioteca interna + Zod |
+| Layer                     | Technology                          |
+| ------------------------- | ----------------------------------- |
+| API                       | NestJS · Prisma · Swagger           |
+| Database                  | PostgreSQL + PostGIS (via Supabase) |
+| Image storage             | Supabase Storage (private bucket)   |
+| Cache                     | Redis (cache-aside)                 |
+| Messaging / queues        | RabbitMQ + workers                  |
+| Real-time                 | WebSocket (socket.io)               |
+| Notifications             | Meta WhatsApp Cloud API             |
+| Citizen app               | Expo + Expo Router (no login)       |
+| Administrative dashboard  | Refine (React + Vite)               |
+| Authentication (admin)    | Clerk                               |
+| Shared types & validation | internal library + Zod              |
 
-## Estrutura do monorepo
+## Monorepo structure
 
-```
+```text
 conduit-platform/
   packages/
-    api/            # NestJS — HTTP, WebSocket e workers do RabbitMQ
-    mobile/         # Expo — app do cidadão
-    admin/          # Refine — painel da operação
-    shared-types/   # tipos de domínio + schemas Zod (compartilhados)
-  docker-compose.yml  # Redis + RabbitMQ para desenvolvimento local
+    api/            # NestJS — HTTP, WebSocket, and RabbitMQ workers
+    mobile/         # Expo — citizen app
+    admin/          # Refine — operations dashboard
+    shared-types/   # domain types + Zod schemas (shared)
+  docker-compose.yml  # Redis + RabbitMQ for local development
   nx.json
   pnpm-workspace.yaml
 ```
 
-A biblioteca `shared-types` é a fonte única de verdade do modelo de domínio (chamado, status, categorias): muda em um lugar e o TypeScript aponta o que ajustar nos três apps.
+The `shared-types` library is the single source of truth for the domain model: service request, status, and categories. Change it in one place, and TypeScript points out what needs to be adjusted across all three apps.
 
-## Começando
+## Getting started
 
-### Pré-requisitos
+### Prerequisites
 
-- **Node.js 24 LTS** (recomendado para produção)
-- **pnpm** (a versão fixada em `packageManager`, no `package.json`)
-- **Docker** — para subir Redis e RabbitMQ localmente
-- Contas/credenciais: Supabase, Clerk e Meta WhatsApp Cloud API
+* **Node.js 24 LTS** (recommended for production)
+* **pnpm** (the version pinned in `packageManager` in `package.json`)
+* **Docker** — to run Redis and RabbitMQ locally
+* Accounts/credentials: Supabase, Clerk, and Meta WhatsApp Cloud API
 
-### Instalação
+### Installation
 
 ```bash
 pnpm install
 ```
 
-### Variáveis de ambiente
+### Environment variables
 
-Crie um `.env` na raiz (e/ou em `packages/api`) com as chaves do seu ambiente:
+Create a `.env` file in the root directory and/or in `packages/api` with the keys for your environment:
 
 ```bash
-# Banco (Supabase)
-DATABASE_URL=            # connection string do pooler (uso da aplicação)
-DIRECT_URL=             # connection string direta (migrations)
+# Database (Supabase)
+DATABASE_URL=            # pooler connection string (application usage)
+DIRECT_URL=              # direct connection string (migrations)
 
-# Infra
-REDIS_URL=              # Upstash ou local
-RABBITMQ_URL=           # CloudAMQP ou local
+# Infrastructure
+REDIS_URL=               # Upstash or local
+RABBITMQ_URL=            # CloudAMQP or local
 
-# Autenticação (admin)
+# Authentication (admin)
 CLERK_SECRET_KEY=
 CLERK_PUBLISHABLE_KEY=
 
-# Storage e notificações
+# Storage and notifications
 SUPABASE_URL=
 SUPABASE_SERVICE_KEY=
 WHATSAPP_TOKEN=
 WHATSAPP_PHONE_ID=
 ```
 
-### Desenvolvimento
+### Development
 
-Suba a infraestrutura local e os apps:
+Start the local infrastructure and apps:
 
 ```bash
 # Redis + RabbitMQ
@@ -117,55 +117,55 @@ docker compose up -d
 # API (NestJS)
 pnpm nx serve @org/api
 
-# App do cidadão (Expo)
+# Citizen app (Expo)
 pnpm nx start @org/mobile
 
-# Painel administrativo (Refine)
+# Administrative dashboard (Refine)
 pnpm nx serve @org/admin
 ```
 
-A documentação da API (Swagger) fica disponível na rota `/docs` da API em execução.
+The API documentation (Swagger) is available at the `/docs` route of the running API.
 
-## Comandos úteis
+## Useful commands
 
 ```bash
-# Qualidade em todos os projetos
+# Quality checks across all projects
 pnpm nx run-many -t lint test typecheck
 
-# Build apenas do que foi afetado por uma mudança
+# Build only what was affected by a change
 pnpm nx affected -t build
 
-# Visualizar o grafo de dependências do monorepo
+# View the monorepo dependency graph
 pnpm nx graph
 
-# Listar todos os projetos
+# List all projects
 pnpm nx show projects
 ```
 
-## Segurança e privacidade (LGPD)
+## Security and privacy (LGPD)
 
-A plataforma lida com dados pessoais de cidadãos, e isso é tratado como requisito, não como detalhe:
+The platform handles citizens’ personal data, and this is treated as a requirement, not an afterthought:
 
-- **Protocolo não-enumerável** e rota pública com payload mínimo, para evitar vazamento de dados por adivinhação de números.
-- **Rate limiting** nas rotas públicas, contra abuso e enumeração.
-- **Isolamento por tenant** com RLS no PostgreSQL.
-- **TLS em trânsito** em todas as conexões (API, banco, Redis, broker).
-- **Fotos em bucket privado**, servidas por URLs assinadas e temporárias.
-- **Logs sem dados pessoais.**
+* **Non-enumerable protocol number** and a public route with a minimal payload, to prevent data leaks through number guessing.
+* **Rate limiting** on public routes, protecting against abuse and enumeration.
+* **Tenant isolation** with RLS in PostgreSQL.
+* **TLS in transit** across all connections: API, database, Redis, and broker.
+* **Photos stored in a private bucket**, served through temporary signed URLs.
+* **Logs without personal data.**
 
 ## Roadmap
 
-- [x] Abertura de chamado com foto, GPS e categoria
-- [x] Protocolo rastreável e timeline de status
-- [x] Painel administrativo com tempo real
-- [x] Notificações por WhatsApp
-- [x] Multi-tenant (`tenant_id` + RLS)
-- [ ] Deduplicação automática de chamados por proximidade geográfica
-- [ ] Dashboards e métricas (SLA, tempo médio de resolução, mapa de calor)
-- [ ] Integração com o sistema comercial da concessionária (matrícula do imóvel)
-- [ ] Onboarding self-service de novas concessionárias
-- [ ] Notificações push no app
+* [x] Service request creation with photo, GPS, and category
+* [x] Trackable protocol number and status timeline
+* [x] Real-time administrative dashboard
+* [x] WhatsApp notifications
+* [x] Multi-tenant architecture (`tenant_id` + RLS)
+* [ ] Automatic deduplication of service requests by geographic proximity
+* [ ] Dashboards and metrics: SLA, average resolution time, heat map
+* [ ] Integration with the utility company’s commercial system: property/customer registration number
+* [ ] Self-service onboarding for new utilities
+* [ ] Push notifications in the app
 
-## Licença
+## License
 
-Projeto proprietário. Todos os direitos reservados. _(Ajuste conforme a decisão de licenciamento.)_
+Proprietary project. All rights reserved.
