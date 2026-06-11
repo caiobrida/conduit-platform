@@ -35,7 +35,15 @@ export default [
             },
             {
               sourceTag: 'scope:api',
-              onlyDependOnLibsWithTags: ['scope:api', 'scope:shared'],
+              onlyDependOnLibsWithTags: [
+                'scope:api',
+                'scope:shared',
+                'scope:database',
+              ],
+            },
+            {
+              sourceTag: 'scope:database',
+              onlyDependOnLibsWithTags: ['scope:database', 'scope:shared'],
             },
           ],
         },
