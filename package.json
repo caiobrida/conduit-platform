@@ -6,7 +6,18 @@
   "scripts": {
     "format": "nx format:write --base=origin/main",
     "format:check": "nx format:check --base=origin/main",
-    "lint": "nx affected -t lint --base=origin/main"
+    "lint": "nx affected -t lint --base=origin/main",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:format": "prisma format",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:create": "prisma migrate dev --create-only",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:reset": "prisma migrate reset",
+    "db:studio": "prisma studio",
+    "db:push": "prisma db push",
+    "db:pull": "prisma db pull"
   },
   "private": true,
   "devDependencies": {
