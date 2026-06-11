@@ -16,6 +16,12 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@org/source"]
+    "customConditions": ["@org/source"],
+
+    "baseUrl": ".",
+    "paths": {
+      "@conduit/database": ["packages/database/src/index.ts"],
+      "@conduit/database/*": ["packages/database/src/*"]
+    }
   }
 }
