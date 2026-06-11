@@ -38,5 +38,8 @@
     "react-native-svg": "*",
     "react-native-svg-transformer": "*",
     "react-native-web": "*"
+  },
+  "devDependencies": {
+    "react-test-renderer": "19.1.0"
   }
 }
