@@ -4,12 +4,6 @@
   "files": [],
   "references": [
     {
-      "path": "./api-e2e"
-    },
-    {
-      "path": "./api"
-    },
-    {
       "path": "./packages/mobile"
     },
     {
