@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.5.2",
   "license": "MIT",
   "scripts": {
+    "postinstall": "prisma generate",
     "format": "nx format:write --base=origin/main",
     "format:check": "nx format:check --base=origin/main",
     "lint": "nx affected -t lint --base=origin/main",
