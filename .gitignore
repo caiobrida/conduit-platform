@@ -67,6 +67,6 @@ cache/
 test-output
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
-/generated/prisma
+packages/database/src/generated/
 
 .env
