@@ -3,6 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "nx": {
-    "tags": ["scope:admin"]
+    "tags": [
+      "scope:admin"
+    ]
   }
 }
