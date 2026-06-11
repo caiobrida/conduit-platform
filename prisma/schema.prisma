@@ -6,3 +6,123 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum Category {
+  WATER_OUTAGE
+  STREET_LEAK
+  SERVICE_LINE_LEAK
+  SEWAGE
+  LOW_PRESSURE
+  OTHER
+
+  @@map("category")
+}
+
+enum Status {
+  OPEN
+  IN_TRIAGE
+  TEAM_ASSIGNED
+  IN_FIELD
+  RESOLVED
+  CLOSED
+  REOPENED
+
+  @@map("status")
+}
+
+enum AdminRole {
+  ADMIN
+  OPERATOR
+
+  @@map("admin_role")
+}
+
+model Tenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  serviceRequests ServiceRequest[]
+  photos          Photo[]
+  statusEvents    StatusEvent[]
+  adminUsers      AdminUser[]
+
+  @@map("tenants")
+}
+
+model ServiceRequest {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  protocol    String   @unique
+  category    Category
+  description String
+  status      Status   @default(OPEN)
+  latitude    Float
+  longitude   Float
+  /// PostGIS point kept in sync by the application (see migration add_postgis)
+  location    Unsupported("geography(Point, 4326)")?
+  addressText String?  @map("address_text")
+  /// PII stored in plain text by design: the admin queue requires free
+  /// search/sort on these fields (spec §9). Protected by RLS + access control.
+  reporterName  String   @map("reporter_name")
+  reporterPhone String   @map("reporter_phone")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  photos       Photo[]
+  statusEvents StatusEvent[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, category])
+  @@index([tenantId, createdAt])
+  @@map("service_requests")
+}
+
+model Photo {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  serviceRequestId String   @map("service_request_id") @db.Uuid
+  storageUrl       String   @map("storage_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+
+  @@index([tenantId])
+  @@index([serviceRequestId])
+  @@map("photos")
+}
+
+model StatusEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  serviceRequestId String   @map("service_request_id") @db.Uuid
+  previousStatus   Status?  @map("previous_status")
+  newStatus        Status   @map("new_status")
+  comment          String?
+  author           String
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+
+  @@index([tenantId])
+  @@index([serviceRequestId, createdAt])
+  @@map("status_events")
+}
+
+model AdminUser {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  clerkUserId String    @unique @map("clerk_user_id")
+  role        AdminRole @default(OPERATOR)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("admin_users")
+}
