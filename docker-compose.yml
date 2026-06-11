@@ -1,0 +1,33 @@
+# Local development infrastructure (Redis + RabbitMQ).
+# Database and storage live on Supabase from day one — they are NOT run here.
+#
+# Usage: docker compose up -d
+#
+# Service endpoints:
+#   Redis:                localhost:6379  (REDIS_URL=redis://localhost:6379)
+#   RabbitMQ (AMQP):      localhost:5672  (RABBITMQ_URL=amqp://guest:guest@localhost:5672)
+#   RabbitMQ management:  http://localhost:15672  (user: guest / pass: guest)
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: conduit-redis
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: conduit-rabbitmq
+    ports:
+      - '5672:5672' # AMQP
+      - '15672:15672' # Management UI
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 15s
+      timeout: 5s
+      retries: 5
