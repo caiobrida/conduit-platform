@@ -2,6 +2,9 @@
   "name": "@org/shared-types",
   "version": "0.0.1",
   "private": true,
+  "nx": {
+    "tags": ["scope:shared"]
+  },
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -13,5 +16,7 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {}
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
 }
