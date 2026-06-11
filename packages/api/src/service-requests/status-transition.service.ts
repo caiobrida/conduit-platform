@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { canTransition, Status } from '@org/shared-types';
 import { requireTenantId } from '@org/database';
 import { PrismaService } from '../prisma/prisma.service';

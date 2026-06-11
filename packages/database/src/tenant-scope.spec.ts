@@ -1,5 +1,9 @@
 import { applyTenantScope } from './tenant-scope.js';
-import { runWithTenant, getTenantId, requireTenantId } from './tenant-context.js';
+import {
+  runWithTenant,
+  getTenantId,
+  requireTenantId,
+} from './tenant-context.js';
 
 const TENANT = 'tenant-a';
 
@@ -15,12 +19,7 @@ describe('applyTenantScope', () => {
   });
 
   it('injects tenantId into where on writes', () => {
-    const result = applyTenantScope(
-      'Photo',
-      'deleteMany',
-      {},
-      TENANT,
-    );
+    const result = applyTenantScope('Photo', 'deleteMany', {}, TENANT);
     expect(result['where']).toEqual({ tenantId: TENANT });
   });
 
