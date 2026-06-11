@@ -34,7 +34,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile # era: npm ci
 
-      - run: pnpm exec nx record -- pnpm exec nx format:check --base="remotes/origin/main"
+      - run: pnpm exec nx format:check --base=origin/main"
       - run: pnpm exec nx run-many -t lint test build typecheck e2e-ci
       - run: pnpm exec nx fix-ci
         if: always()
