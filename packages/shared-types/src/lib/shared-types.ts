@@ -77,11 +77,30 @@ export interface ServiceRequest {
   updatedAt: string;
 }
 
-export interface Photo {
+export const MediaType = {
+  PHOTO: 'PHOTO',
+  VIDEO: 'VIDEO',
+} as const;
+export type MediaType = (typeof MediaType)[keyof typeof MediaType];
+
+/** Media limits (C9) — enforced on the client AND re-validated by the API. */
+export const MEDIA_LIMITS = {
+  PHOTO_MAX_BYTES: 5 * 1024 * 1024,
+  VIDEO_MAX_BYTES: 25 * 1024 * 1024,
+  VIDEO_MAX_SECONDS: 10,
+  MAX_PER_SERVICE_REQUEST: 3,
+} as const;
+
+export interface Media {
   id: string;
   tenantId: string;
   serviceRequestId: string;
-  storageUrl: string;
+  type: MediaType;
+  /** Private bucket path — content is served via short-lived signed URLs. */
+  storagePath: string;
+  mimeType: string;
+  sizeBytes: number;
+  durationSeconds: number | null;
   createdAt: string;
 }
 

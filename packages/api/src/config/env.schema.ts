@@ -13,14 +13,25 @@ export const envSchema = z
       .url()
       .default('https://nominatim.openstreetmap.org'),
     CLERK_SECRET_KEY: z.string().min(1).optional(),
+    SUPABASE_URL: z.string().url().optional(),
+    SUPABASE_SERVICE_KEY: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && !env.CLERK_SECRET_KEY) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['CLERK_SECRET_KEY'],
-        message: 'Required in production (admin authentication)',
-      });
+    if (env.NODE_ENV !== 'production') {
+      return;
+    }
+    for (const key of [
+      'CLERK_SECRET_KEY',
+      'SUPABASE_URL',
+      'SUPABASE_SERVICE_KEY',
+    ] as const) {
+      if (!env[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'Required in production',
+        });
+      }
     }
   });
 

@@ -19,7 +19,7 @@ describe('applyTenantScope', () => {
   });
 
   it('injects tenantId into where on writes', () => {
-    const result = applyTenantScope('Photo', 'deleteMany', {}, TENANT);
+    const result = applyTenantScope('Media', 'deleteMany', {}, TENANT);
     expect(result['where']).toEqual({ tenantId: TENANT });
   });
 
@@ -38,7 +38,7 @@ describe('applyTenantScope', () => {
 
   it('injects tenantId into every item on createMany with array data', () => {
     const result = applyTenantScope(
-      'Photo',
+      'Media',
       'createMany',
       { data: [{ storageUrl: 'a' }, { storageUrl: 'b' }] },
       TENANT,
