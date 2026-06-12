@@ -1,7 +1,11 @@
+import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UpdateStatusInput } from '@org/shared-types';
+import { requireTenantId } from '@org/database';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../redis/cache.service';
+import { CACHE_TTL, cacheKeys } from '../redis/cache.constants';
 import { StatusTransitionService } from '../service-requests/status-transition.service';
 import {
   SERVICE_REQUEST_STATUS_CHANGED,
@@ -9,12 +13,22 @@ import {
 } from '../events/domain-events';
 import { ListServiceRequestsQuery } from './list-service-requests.query';
 
+/** Cached page shape — Dates round-trip through Redis as ISO strings. */
+export interface ListResult {
+  items: unknown[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 @Injectable()
 export class AdminServiceRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly transitions: StatusTransitionService,
     private readonly events: EventEmitter2,
+    private readonly cache: CacheService,
   ) {}
 
   /**
@@ -23,6 +37,31 @@ export class AdminServiceRequestsService {
    * query runs inside the tenant scope enforced by the Prisma extension.
    */
   async list(query: ListServiceRequestsQuery) {
+    // D2: cache-aside keyed by tenant + namespace version + query hash.
+    // Writes bump the version (D3), lazily invalidating every cached page
+    // in O(1); the short TTL bounds staleness and reaps old versions. The
+    // key is tenant-prefixed and this route is admin-only, so cached PII
+    // never crosses tenants and expires within seconds.
+    const tenantId = requireTenantId();
+    const queryHash = createHash('sha1')
+      .update(JSON.stringify(query))
+      .digest('hex');
+    const version = await this.cache.getVersion(
+      cacheKeys.adminListVersion(tenantId),
+    );
+    const cacheKey = cacheKeys.adminList(tenantId, version, queryHash);
+
+    const cached = await this.cache.get<ListResult>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.queryList(query);
+    await this.cache.set(cacheKey, result, CACHE_TTL.ADMIN_LIST);
+    return result;
+  }
+
+  private async queryList(query: ListServiceRequestsQuery) {
     const where = {
       ...(query.status && { status: query.status }),
       ...(query.category && { category: query.category }),

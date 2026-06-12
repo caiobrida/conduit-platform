@@ -8,6 +8,7 @@ import { PublicService } from './public.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GeocodingService } from '../geocoding/geocoding.service';
 import { SERVICE_REQUEST_CREATED } from '../events/domain-events';
+import { CacheService } from '../redis/cache.service';
 
 jest.mock('@org/database', () => {
   const actual = jest.requireActual('@org/database');
@@ -49,7 +50,14 @@ describe('PublicService', () => {
   const emit = jest.fn();
   const events = { emit } as unknown as EventEmitter2;
 
-  const service = new PublicService(prisma, geocoding, events);
+  // CacheService with a null client is a true no-op (the dev/test path),
+  // so these tests exercise the uncached behavior end to end.
+  const service = new PublicService(
+    prisma,
+    geocoding,
+    events,
+    new CacheService(null),
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -220,6 +228,68 @@ describe('PublicService', () => {
       await expect(
         service.getByProtocol('saae-campinas', 'ZZZZZZZZ9999'),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('getByProtocol cache-aside (D2/D3)', () => {
+    const row = (status: string) => ({
+      protocol: 'ABCDEFGH2345',
+      category: 'STREET_LEAK',
+      status,
+      createdAt: new Date('2026-06-12T12:00:00Z'),
+      statusEvents: [],
+    });
+
+    // Minimal in-memory Redis stand-in: real get/set/del semantics.
+    const makeCachedService = () => {
+      const store = new Map<string, string>();
+      const fakeRedis = {
+        get: jest.fn(async (k: string) => store.get(k) ?? null),
+        set: jest.fn(async (k: string, v: string) => void store.set(k, v)),
+        del: jest.fn(async (k: string) => void store.delete(k)),
+        incr: jest.fn(),
+        ping: jest.fn(),
+      };
+      const cache = new CacheService(
+        fakeRedis as unknown as ConstructorParameters<typeof CacheService>[0],
+      );
+      return {
+        cache,
+        service: new PublicService(prisma, geocoding, events, cache),
+      };
+    };
+
+    it('serves the second lookup from cache (single DB query)', async () => {
+      const { service: cachedService } = makeCachedService();
+      findUnique.mockResolvedValue(row('OPEN'));
+
+      const first = await cachedService.getByProtocol(
+        'saae-campinas',
+        'abcdefgh2345',
+      );
+      const second = await cachedService.getByProtocol(
+        'saae-campinas',
+        'ABCDEFGH2345',
+      );
+
+      expect(second).toEqual(first);
+      expect(findUnique).toHaveBeenCalledTimes(1);
+    });
+
+    it('reflects a status change after invalidation (consistency)', async () => {
+      const { cache, service: cachedService } = makeCachedService();
+      findUnique.mockResolvedValue(row('OPEN'));
+      await cachedService.getByProtocol('saae-campinas', 'ABCDEFGH2345');
+
+      // D3: the invalidation listener deletes this key on status change.
+      findUnique.mockResolvedValue(row('IN_TRIAGE'));
+      await cache.del(`t:${TENANT.id}:sr:proto:ABCDEFGH2345`);
+
+      const after = await cachedService.getByProtocol(
+        'saae-campinas',
+        'ABCDEFGH2345',
+      );
+      expect(after.status).toBe('IN_TRIAGE');
     });
   });
 });

@@ -15,6 +15,11 @@ export const envSchema = z
     CLERK_SECRET_KEY: z.string().min(1).optional(),
     SUPABASE_URL: z.string().url().optional(),
     SUPABASE_SERVICE_KEY: z.string().min(1).optional(),
+    /** Use rediss:// (TLS) in production — e.g. Upstash. Optional in dev. */
+    REDIS_URL: z
+      .string()
+      .regex(/^rediss?:\/\//, 'Must be a redis:// or rediss:// URL')
+      .optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') {
@@ -24,6 +29,7 @@ export const envSchema = z
       'CLERK_SECRET_KEY',
       'SUPABASE_URL',
       'SUPABASE_SERVICE_KEY',
+      'REDIS_URL',
     ] as const) {
       if (!env[key]) {
         ctx.addIssue({
