@@ -1,7 +1,7 @@
 /** Business models that carry tenant_id and must always be tenant-scoped. */
 export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'ServiceRequest',
-  'Photo',
+  'Media',
   'StatusEvent',
   'AdminUser',
 ]);
