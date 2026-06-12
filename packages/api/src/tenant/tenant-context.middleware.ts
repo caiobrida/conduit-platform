@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
+import { RequestWithAdmin } from '../auth/authenticated-admin';
 import { runWithTenant } from '@org/database';
 
 /**
@@ -15,7 +16,11 @@ import { runWithTenant } from '@org/database';
 export class TenantContextMiddleware implements NestMiddleware {
   constructor(private readonly config: ConfigService) {}
 
-  use(req: Request, _res: Response, next: NextFunction) {
+  use(req: RequestWithAdmin, _res: Response, next: NextFunction) {
+    // Never override a request already authenticated by ClerkAuthMiddleware.
+    if (req.admin) {
+      return next();
+    }
     const isProduction = this.config.get('NODE_ENV') === 'production';
     const tenantId = isProduction
       ? undefined

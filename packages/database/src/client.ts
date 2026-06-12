@@ -32,13 +32,20 @@ export function tenantScopingExtension() {
   });
 }
 
-function createPrismaClient() {
-  const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL,
-  });
-  return new PrismaClient({ adapter }).$extends(tenantScopingExtension());
-}
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
 
-export type TenantScopedPrismaClient = ReturnType<typeof createPrismaClient>;
+const baseClient = new PrismaClient({ adapter });
 
-export const prisma = createPrismaClient();
+/**
+ * Client WITHOUT tenant scoping — shares the same connection pool as
+ * `prisma`. Restricted to bootstrap paths that run before a tenant is
+ * known (e.g. resolving AdminUser from a Clerk user id, resolving a
+ * public tenant slug). Never use it inside request handlers.
+ */
+export const systemPrisma = baseClient;
+
+export const prisma = baseClient.$extends(tenantScopingExtension());
+
+export type TenantScopedPrismaClient = typeof prisma;
