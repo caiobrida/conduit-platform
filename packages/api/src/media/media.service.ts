@@ -86,7 +86,9 @@ export class MediaService {
           mimeType: detected.mimeType,
           sizeBytes: file.size,
           durationSeconds:
-            detected.type === MediaType.VIDEO ? (durationSeconds ?? null) : null,
+            detected.type === MediaType.VIDEO
+              ? (durationSeconds ?? null)
+              : null,
         },
         select: { id: true, type: true, mimeType: true, createdAt: true },
       });

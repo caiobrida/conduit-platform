@@ -59,9 +59,7 @@ describe('validateMediaLimits (C9)', () => {
 
   it('accepts a video up to 25MB/10s and rejects above', () => {
     expect(validateMediaLimits(video, 25 * MB, 10)).toBeNull();
-    expect(validateMediaLimits(video, 25 * MB + 1, 10)).toBe(
-      'VIDEO_TOO_LARGE',
-    );
+    expect(validateMediaLimits(video, 25 * MB + 1, 10)).toBe('VIDEO_TOO_LARGE');
     expect(validateMediaLimits(video, MB, 11)).toBe('VIDEO_TOO_LONG');
   });
 

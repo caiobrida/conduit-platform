@@ -1,10 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": [
-      "node",
-      "multer"
-    ],
+    "types": ["node", "multer"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "target": "es2021",
@@ -14,9 +11,7 @@
     "emitDeclarationOnly": false,
     "noEmit": true
   },
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "out-tsc",
     "dist",

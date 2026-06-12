@@ -2,11 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./out-tsc/jest",
-    "types": [
-      "jest",
-      "node",
-      "multer"
-    ],
+    "types": ["jest", "node", "multer"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
