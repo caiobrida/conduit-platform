@@ -45,6 +45,13 @@ enum ServiceAreaLevel {
   @@map("service_area_level")
 }
 
+enum MediaType {
+  PHOTO
+  VIDEO
+
+  @@map("media_type")
+}
+
 model Tenant {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
@@ -56,7 +63,7 @@ model Tenant {
   createdAt DateTime @default(now()) @map("created_at")
 
   serviceRequests ServiceRequest[]
-  photos          Photo[]
+  media           Media[]
   statusEvents    StatusEvent[]
   adminUsers      AdminUser[]
 
@@ -89,7 +96,7 @@ model ServiceRequest {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id])
-  photos       Photo[]
+  media        Media[]
   statusEvents StatusEvent[]
 
   @@index([tenantId])
@@ -101,19 +108,26 @@ model ServiceRequest {
   @@map("service_requests")
 }
 
-model Photo {
-  id               String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @map("tenant_id") @db.Uuid
-  serviceRequestId String   @map("service_request_id") @db.Uuid
-  storageUrl       String   @map("storage_url")
-  createdAt        DateTime @default(now()) @map("created_at")
+model Media {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  serviceRequestId String    @map("service_request_id") @db.Uuid
+  type             MediaType @default(PHOTO)
+  /// Path inside the private storage bucket — never a public URL.
+  /// Served exclusively through short-lived signed URLs (I5).
+  storagePath String @map("storage_path")
+  mimeType    String @map("mime_type")
+  sizeBytes   Int    @map("size_bytes")
+  /// Only for VIDEO (≤ 10s per product rule C9).
+  durationSeconds Int?     @map("duration_seconds")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   tenant         Tenant         @relation(fields: [tenantId], references: [id])
   serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id])
 
   @@index([tenantId])
   @@index([serviceRequestId])
-  @@map("photos")
+  @@map("media")
 }
 
 model StatusEvent {

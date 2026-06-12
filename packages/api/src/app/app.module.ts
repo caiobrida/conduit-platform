@@ -11,6 +11,7 @@ import { GeocodingModule } from '../geocoding/geocoding.module';
 import { AuthModule } from '../auth/auth.module';
 import { PublicModule } from '../public/public.module';
 import { AdminModule } from '../admin/admin.module';
+import { MediaModule } from '../media/media.module';
 import { ClerkAuthMiddleware } from '../auth/clerk-auth.middleware';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware';
 import { StatusTransitionService } from '../service-requests/status-transition.service';
@@ -30,6 +31,7 @@ import { StatusTransitionService } from '../service-requests/status-transition.s
     AuthModule,
     PublicModule,
     AdminModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [
