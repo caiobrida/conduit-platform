@@ -1,8 +1,9 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv } from '../config/env.schema';
@@ -15,6 +16,7 @@ import { MediaModule } from '../media/media.module';
 import { ClerkAuthMiddleware } from '../auth/clerk-auth.middleware';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware';
 import { StatusTransitionService } from '../service-requests/status-transition.service';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -24,8 +26,21 @@ import { StatusTransitionService } from '../service-requests/status-transition.s
     }),
     EventEmitterModule.forRoot(),
     // Global safety-net rate limit; public routes set tighter per-route
-    // limits via @Throttle (I6 — Redis storage arrives with Épico D).
-    ThrottlerModule.forRoot([{ limit: 100, ttl: 60_000 }]),
+    // limits via @Throttle. With REDIS_URL the counters live in Redis (I6 —
+    // distributed limit across instances); without it, in-memory (dev).
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL');
+        return {
+          throttlers: [{ limit: 100, ttl: 60_000 }],
+          ...(redisUrl && {
+            storage: new ThrottlerStorageRedisService(redisUrl),
+          }),
+        };
+      },
+    }),
+    RedisModule,
     PrismaModule,
     GeocodingModule,
     AuthModule,

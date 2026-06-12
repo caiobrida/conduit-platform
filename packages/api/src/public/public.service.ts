@@ -22,8 +22,18 @@ import {
   SERVICE_REQUEST_CREATED,
   ServiceRequestCreatedEvent,
 } from '../events/domain-events';
+import { CacheService } from '../redis/cache.service';
+import { CACHE_TTL, cacheKeys } from '../redis/cache.constants';
 
 const PROTOCOL_MAX_RETRIES = 3;
+
+/** Tenant fields the public flow needs — only these are cached (no overshare). */
+interface ResolvedTenant {
+  id: string;
+  slug: string;
+  serviceAreaLevel: ServiceAreaLevel | null;
+  serviceAreaValues: string[];
+}
 
 @Injectable()
 export class PublicService {
@@ -33,16 +43,41 @@ export class PublicService {
     private readonly prisma: PrismaService,
     private readonly geocoding: GeocodingService,
     private readonly events: EventEmitter2,
+    private readonly cache: CacheService,
   ) {}
 
-  /** Resolves a tenant by public slug (bootstrap — runs before tenant scope). */
-  private async resolveTenant(slug: string) {
-    const tenant = await systemPrisma.tenant.findUnique({ where: { slug } });
+  /**
+   * Resolves a tenant by public slug (bootstrap — runs before tenant scope).
+   * D2: cached — cuts one query from every public request.
+   */
+  private async resolveTenant(slug: string): Promise<ResolvedTenant> {
+    const key = cacheKeys.tenantBySlug(slug);
+    const cached = await this.cache.get<ResolvedTenant>(key);
+    if (cached) {
+      return cached;
+    }
+
+    const tenant = await systemPrisma.tenant.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        serviceAreaLevel: true,
+        serviceAreaValues: true,
+      },
+    });
     if (!tenant) {
-      // Generic 404: do not reveal which slugs exist.
+      // Generic 404: do not reveal which slugs exist. Misses are NOT cached
+      // so a tenant created later is visible immediately.
       throw new NotFoundException();
     }
-    return tenant;
+
+    const resolved: ResolvedTenant = {
+      ...tenant,
+      serviceAreaLevel: tenant.serviceAreaLevel as ServiceAreaLevel | null,
+    };
+    await this.cache.set(key, resolved, CACHE_TTL.TENANT_BY_SLUG);
+    return resolved;
   }
 
   /** C1 + C8: create a service request, validating the tenant service area. */
@@ -139,14 +174,34 @@ export class PublicService {
   /**
    * C3: public tracking by protocol — minimal payload, ZERO reporter PII
    * (LGPD): explicit select, status + timeline only.
+   *
+   * D2: cache-aside on the hot public read. Only the PII-free
+   * PublicServiceRequest payload ever reaches Redis; the key is actively
+   * invalidated on status changes (D3) with the TTL as a staleness bound.
    */
   async getByProtocol(
     slug: string,
     protocol: string,
   ): Promise<PublicServiceRequest> {
     const tenant = await this.resolveTenant(slug);
+    const normalized = protocol.toUpperCase();
+    const key = cacheKeys.protocolDetail(tenant.id, normalized);
 
-    return runWithTenant(tenant.id, async () => {
+    const cached = await this.cache.get<PublicServiceRequest>(key);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.loadByProtocol(tenant.id, normalized);
+    await this.cache.set(key, result, CACHE_TTL.PROTOCOL_DETAIL);
+    return result;
+  }
+
+  private async loadByProtocol(
+    tenantId: string,
+    protocol: string,
+  ): Promise<PublicServiceRequest> {
+    return runWithTenant(tenantId, async () => {
       const request = await this.prisma.client.serviceRequest.findUnique({
         where: { protocol: protocol.toUpperCase() },
         select: {

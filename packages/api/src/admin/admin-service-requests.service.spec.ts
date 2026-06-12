@@ -1,5 +1,7 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Status, Category } from '@org/shared-types';
+import { runWithTenant } from '@org/database';
+import { CacheService } from '../redis/cache.service';
 import { AdminServiceRequestsService } from './admin-service-requests.service';
 import { listServiceRequestsQuerySchema } from './list-service-requests.query';
 import { PrismaService } from '../prisma/prisma.service';
@@ -43,23 +45,32 @@ describe('AdminServiceRequestsService', () => {
   const transitions = { transition } as unknown as StatusTransitionService;
   const emit = jest.fn();
   const events = { emit } as unknown as EventEmitter2;
-  const service = new AdminServiceRequestsService(prisma, transitions, events);
+  // No-op cache (null client) — exercises the uncached path; list() reads
+  // the tenant from the AsyncLocalStorage context, hence runWithTenant.
+  const service = new AdminServiceRequestsService(
+    prisma,
+    transitions,
+    events,
+    new CacheService(null),
+  );
 
   beforeEach(() => jest.clearAllMocks());
 
   it('builds filters and search into the where clause (C4)', async () => {
     findMany.mockResolvedValue([]);
     count.mockResolvedValue(0);
-    await service.list(
-      listServiceRequestsQuerySchema.parse({
-        status: Status.OPEN,
-        city: 'Campinas',
-        search: 'Maria',
-        page: '2',
-        pageSize: '10',
-        sortBy: 'city',
-        sortOrder: 'asc',
-      }),
+    await runWithTenant('tenant-a', () =>
+      service.list(
+        listServiceRequestsQuerySchema.parse({
+          status: Status.OPEN,
+          city: 'Campinas',
+          search: 'Maria',
+          page: '2',
+          pageSize: '10',
+          sortBy: 'city',
+          sortOrder: 'asc',
+        }),
+      ),
     );
 
     const args = findMany.mock.calls[0][0];
@@ -72,6 +83,40 @@ describe('AdminServiceRequestsService', () => {
     expect(args.orderBy).toEqual({ city: 'asc' });
     expect(args.skip).toBe(10);
     expect(args.take).toBe(10);
+  });
+
+  it('caches list pages and a version bump invalidates them (D2/D3)', async () => {
+    const store = new Map<string, string>();
+    let version = 0;
+    const fakeRedis = {
+      get: jest.fn(async (k: string) =>
+        k.endsWith(':sr:list:ver') ? String(version) : (store.get(k) ?? null),
+      ),
+      set: jest.fn(async (k: string, v: string) => void store.set(k, v)),
+      del: jest.fn(),
+      incr: jest.fn(async () => ++version),
+      ping: jest.fn(),
+    };
+    const cache = new CacheService(
+      fakeRedis as unknown as ConstructorParameters<typeof CacheService>[0],
+    );
+    const cachedService = new AdminServiceRequestsService(
+      prisma,
+      transitions,
+      events,
+      cache,
+    );
+    const query = listServiceRequestsQuerySchema.parse({});
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await runWithTenant('tenant-a', () => cachedService.list(query));
+    await runWithTenant('tenant-a', () => cachedService.list(query));
+    expect(findMany).toHaveBeenCalledTimes(1); // second page from cache
+
+    await cache.bumpVersion('t:tenant-a:sr:list:ver');
+    await runWithTenant('tenant-a', () => cachedService.list(query));
+    expect(findMany).toHaveBeenCalledTimes(2); // new version → fresh query
   });
 
   it('applies the status transition and emits the domain event (C5)', async () => {
