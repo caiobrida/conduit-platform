@@ -8,6 +8,10 @@ import { EventsGateway } from '../realtime/events.gateway';
 @Module({
   imports: [AuthModule],
   controllers: [AdminController],
-  providers: [AdminServiceRequestsService, StatusTransitionService, EventsGateway],
+  providers: [
+    AdminServiceRequestsService,
+    StatusTransitionService,
+    EventsGateway,
+  ],
 })
 export class AdminModule {}
