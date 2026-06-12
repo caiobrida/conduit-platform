@@ -7,6 +7,10 @@ export const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().url(),
   DIRECT_URL: z.string().url().optional(),
+  GEOCODING_BASE_URL: z
+    .string()
+    .url()
+    .default('https://nominatim.openstreetmap.org'),
 });
 
 export type Env = z.infer<typeof envSchema>;

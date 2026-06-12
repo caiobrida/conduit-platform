@@ -37,10 +37,22 @@ enum AdminRole {
   @@map("admin_role")
 }
 
+enum ServiceAreaLevel {
+  CITY
+  STATE
+  COUNTRY
+
+  @@map("service_area_level")
+}
+
 model Tenant {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
   slug      String   @unique
+  /// Service area restriction: which localities this tenant accepts service
+  /// requests from. Null level = unrestricted (validation happens in C8).
+  serviceAreaLevel  ServiceAreaLevel? @map("service_area_level")
+  serviceAreaValues String[]          @default([]) @map("service_area_values")
   createdAt DateTime @default(now()) @map("created_at")
 
   serviceRequests ServiceRequest[]
@@ -63,6 +75,12 @@ model ServiceRequest {
   /// PostGIS point kept in sync by the application (see migration add_postgis)
   location    Unsupported("geography(Point, 4326)")?
   addressText String?  @map("address_text")
+  /// Locality resolved by reverse geocoding at creation time (B9); nullable
+  /// because the geocoder may be unavailable. Used for filters and the
+  /// service-area validation (C8/G8).
+  city    String?
+  state   String?
+  country String?
   /// PII stored in plain text by design: the admin queue requires free
   /// search/sort on these fields (spec §9). Protected by RLS + access control.
   reporterName  String   @map("reporter_name")
@@ -78,6 +96,8 @@ model ServiceRequest {
   @@index([tenantId, status])
   @@index([tenantId, category])
   @@index([tenantId, createdAt])
+  @@index([tenantId, city])
+  @@index([tenantId, state])
   @@map("service_requests")
 }
 

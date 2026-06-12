@@ -29,12 +29,31 @@ export const AdminRole = {
 } as const;
 export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole];
 
+export const ServiceAreaLevel = {
+  CITY: 'CITY',
+  STATE: 'STATE',
+  COUNTRY: 'COUNTRY',
+} as const;
+export type ServiceAreaLevel =
+  (typeof ServiceAreaLevel)[keyof typeof ServiceAreaLevel];
+
 // ─── Domain interfaces ────────────────────────────────────────────────────
+
+/**
+ * Which localities a tenant accepts service requests from.
+ * CITY restricts to specific cities, STATE to whole states, COUNTRY to
+ * whole countries. A tenant without a service area is unrestricted.
+ */
+export interface ServiceArea {
+  level: ServiceAreaLevel;
+  values: string[];
+}
 
 export interface Tenant {
   id: string;
   name: string;
   slug: string;
+  serviceArea: ServiceArea | null;
   createdAt: string;
 }
 
@@ -48,6 +67,10 @@ export interface ServiceRequest {
   latitude: number;
   longitude: number;
   addressText: string | null;
+  /** Locality resolved by reverse geocoding at creation time. */
+  city: string | null;
+  state: string | null;
+  country: string | null;
   reporterName: string;
   reporterPhone: string;
   createdAt: string;
@@ -85,6 +108,13 @@ export interface AdminUser {
 
 export const categorySchema = z.nativeEnum(Category);
 export const statusSchema = z.nativeEnum(Status);
+export const serviceAreaLevelSchema = z.nativeEnum(ServiceAreaLevel);
+
+export const serviceAreaSchema = z.object({
+  level: serviceAreaLevelSchema,
+  values: z.array(z.string().trim().min(1)).min(1),
+});
+export type ServiceAreaInput = z.infer<typeof serviceAreaSchema>;
 
 export const createServiceRequestSchema = z.object({
   category: categorySchema,
@@ -111,6 +141,13 @@ export const protocolLookupSchema = z.object({
   protocol: z.string().min(8).max(32),
 });
 export type ProtocolLookupInput = z.infer<typeof protocolLookupSchema>;
+
+/** Locality resolved from coordinates by the reverse geocoder. */
+export interface ResolvedLocality {
+  city: string | null;
+  state: string | null;
+  country: string | null;
+}
 
 // ─── Public payloads (tracking route — minimal payload, no PII) ───────────
 

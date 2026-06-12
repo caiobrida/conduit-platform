@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv } from '../config/env.schema';
 import { PrismaModule } from '../prisma/prisma.module';
+import { GeocodingModule } from '../geocoding/geocoding.module';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware';
 import { StatusTransitionService } from '../service-requests/status-transition.service';
 
@@ -14,6 +15,7 @@ import { StatusTransitionService } from '../service-requests/status-transition.s
       validate: validateEnv,
     }),
     PrismaModule,
+    GeocodingModule,
   ],
   controllers: [AppController],
   providers: [AppService, StatusTransitionService],
