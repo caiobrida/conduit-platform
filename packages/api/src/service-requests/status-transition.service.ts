@@ -63,7 +63,7 @@ export class StatusTransitionService {
         },
       });
 
-      return updated;
+      return { request: updated, previousStatus: currentStatus };
     });
   }
 }

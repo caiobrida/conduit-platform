@@ -38,7 +38,8 @@ describe('StatusTransitionService', () => {
       author: 'operator-1',
     });
 
-    expect(result).toEqual({ id: 'sr-1', status: Status.IN_TRIAGE });
+    expect(result.request).toEqual({ id: 'sr-1', status: Status.IN_TRIAGE });
+    expect(result.previousStatus).toBe(Status.OPEN);
     expect(update).toHaveBeenCalledWith({
       where: { id: 'sr-1' },
       data: { status: Status.IN_TRIAGE },
