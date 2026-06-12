@@ -45,8 +45,6 @@ export class AppModule implements NestModule {
     // Order matters: Clerk authentication first (binds the tenant context
     // for admin requests); the dev-only x-tenant-id fallback never overrides
     // an authenticated request.
-    consumer
-      .apply(ClerkAuthMiddleware, TenantContextMiddleware)
-      .forRoutes('*');
+    consumer.apply(ClerkAuthMiddleware, TenantContextMiddleware).forRoutes('*');
   }
 }
