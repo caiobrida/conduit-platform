@@ -18,7 +18,7 @@ module.exports = {
       target: 'node',
       compiler: 'tsc',
       main: './src/main.ts',
-      tsConfig: './tsconfig.app.json',
+      tsConfig: './tsconfig.webpack.json',
       assets: ['./src/assets'],
       optimization: false,
       outputHashing: 'none',
