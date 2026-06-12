@@ -34,7 +34,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile # era: npm ci
 
-      - run: pnpm exec nx format:check --base=origin/main
-      - run: pnpm exec nx run-many -t lint test build typecheck e2e-ci
+      - run: pnpm run format:check
+      # lint + test (Jest, todos os projetos) + build + typecheck + e2e —
+      # mesmo comando disponível localmente via `pnpm run ci:check`
+      - run: pnpm run ci:check
       - run: pnpm exec nx fix-ci
         if: always()
