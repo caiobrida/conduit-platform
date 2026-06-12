@@ -93,7 +93,10 @@ describe('PublicService', () => {
       );
       expect(emit).toHaveBeenCalledWith(
         SERVICE_REQUEST_CREATED,
-        expect.objectContaining({ tenantId: 'tenant-a', protocol: result.protocol }),
+        expect.objectContaining({
+          tenantId: 'tenant-a',
+          protocol: result.protocol,
+        }),
       );
     });
 

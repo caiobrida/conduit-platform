@@ -40,7 +40,9 @@ export class AdminServiceRequestsService {
       }),
       ...(query.search && {
         OR: [
-          { protocol: { contains: query.search, mode: 'insensitive' as const } },
+          {
+            protocol: { contains: query.search, mode: 'insensitive' as const },
+          },
           {
             reporterName: {
               contains: query.search,

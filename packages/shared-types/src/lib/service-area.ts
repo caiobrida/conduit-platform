@@ -6,11 +6,7 @@ import {
 
 /** Case- and accent-insensitive normalization for locality comparison. */
 export function normalizeLocality(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .trim()
-    .toLowerCase();
+  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 }
 
 function localityFieldFor(level: ServiceAreaLevel): keyof ResolvedLocality {
