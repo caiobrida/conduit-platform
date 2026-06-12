@@ -3,7 +3,9 @@ import { generateProtocol } from './protocol';
 describe('generateProtocol', () => {
   it('produces 12 chars from the unambiguous alphabet', () => {
     for (let i = 0; i < 100; i++) {
-      expect(generateProtocol()).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{12}$/);
+      expect(generateProtocol()).toMatch(
+        /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{12}$/,
+      );
     }
   });
 
