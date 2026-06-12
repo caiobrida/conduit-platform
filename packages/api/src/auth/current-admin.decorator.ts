@@ -1,8 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import {
-  AuthenticatedAdmin,
-  RequestWithAdmin,
-} from './authenticated-admin';
+import { AuthenticatedAdmin, RequestWithAdmin } from './authenticated-admin';
 
 /** Injects the authenticated admin (set by ClerkAuthMiddleware). */
 export const CurrentAdmin = createParamDecorator(
