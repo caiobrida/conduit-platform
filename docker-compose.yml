@@ -45,7 +45,7 @@ services:
   # Reuses the local Redis (logical DB 1, key prefix evolution_v2) and has its
   # own Postgres for instance/session data — never the app's Supabase database.
   evolution-api:
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:v2.3.7
     container_name: conduit-evolution
     profiles: ['whatsapp']
     restart: unless-stopped
@@ -57,6 +57,7 @@ services:
     ports:
       - '8080:8080'
     environment:
+      SERVER_URL: http://localhost:8080
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-dev-evolution-key-change-me}
       DATABASE_ENABLED: 'true'
       DATABASE_PROVIDER: postgresql
