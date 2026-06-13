@@ -23,6 +23,8 @@ export const envSchema = z
     /** Self-hosted Evolution API (WhatsApp) base URL — e.g. http://localhost:8080. */
     EVOLUTION_API_URL: z.string().url().optional(),
     EVOLUTION_API_KEY: z.string().min(1).optional(),
+    /** Evolution instance the app sends WhatsApp messages from (dev: caiotest). */
+    EVOLUTION_INSTANCE: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') {
@@ -35,6 +37,7 @@ export const envSchema = z
       'REDIS_URL',
       'EVOLUTION_API_URL',
       'EVOLUTION_API_KEY',
+      'EVOLUTION_INSTANCE',
     ] as const) {
       if (!env[key]) {
         ctx.addIssue({
