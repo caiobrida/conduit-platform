@@ -20,6 +20,9 @@ export const envSchema = z
       .string()
       .regex(/^rediss?:\/\//, 'Must be a redis:// or rediss:// URL')
       .optional(),
+    /** Self-hosted Evolution API (WhatsApp) base URL — e.g. http://localhost:8080. */
+    EVOLUTION_API_URL: z.string().url().optional(),
+    EVOLUTION_API_KEY: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') {
@@ -30,6 +33,8 @@ export const envSchema = z
       'SUPABASE_URL',
       'SUPABASE_SERVICE_KEY',
       'REDIS_URL',
+      'EVOLUTION_API_URL',
+      'EVOLUTION_API_KEY',
     ] as const) {
       if (!env[key]) {
         ctx.addIssue({
