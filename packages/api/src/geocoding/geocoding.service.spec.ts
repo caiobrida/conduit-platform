@@ -64,4 +64,61 @@ describe('GeocodingService', () => {
     mockFetch(async () => ({ ok: true, json: async () => ({}) }));
     await expect(service.reverseGeocode(0, 0)).resolves.toBeNull();
   });
+
+  describe('forwardGeocode', () => {
+    it('resolves coordinates, normalized address and locality from a match', async () => {
+      mockFetch(async () => ({
+        ok: true,
+        json: async () => [
+          {
+            lat: '-22.9056',
+            lon: '-47.0608',
+            display_name: 'Avenida Anchieta, Campinas, SP, Brasil',
+            address: {
+              city: 'Campinas',
+              state: 'São Paulo',
+              'ISO3166-2-lvl4': 'BR-SP',
+              country_code: 'br',
+            },
+          },
+        ],
+      }));
+
+      await expect(
+        service.forwardGeocode('Avenida Anchieta, Campinas'),
+      ).resolves.toEqual({
+        latitude: -22.9056,
+        longitude: -47.0608,
+        address: 'Avenida Anchieta, Campinas, SP, Brasil',
+        locality: { city: 'Campinas', state: 'SP', country: 'BR' },
+      });
+    });
+
+    it('returns null when the provider finds no match (address does not exist)', async () => {
+      mockFetch(async () => ({ ok: true, json: async () => [] }));
+      await expect(service.forwardGeocode('asdfqwerzxcv')).resolves.toBeNull();
+    });
+
+    it('returns null when the match has non-numeric coordinates', async () => {
+      mockFetch(async () => ({
+        ok: true,
+        json: async () => [{ lat: 'x', lon: 'y', display_name: 'broken' }],
+      }));
+      await expect(service.forwardGeocode('somewhere')).resolves.toBeNull();
+    });
+
+    it('throws on HTTP errors (transient — caller maps to 503)', async () => {
+      mockFetch(async () => ({ ok: false, status: 503 }));
+      await expect(service.forwardGeocode('anywhere')).rejects.toThrow('503');
+    });
+
+    it('throws when the network fails (does not swallow like reverse)', async () => {
+      mockFetch(async () => {
+        throw new Error('network down');
+      });
+      await expect(service.forwardGeocode('anywhere')).rejects.toThrow(
+        'network down',
+      );
+    });
+  });
 });
