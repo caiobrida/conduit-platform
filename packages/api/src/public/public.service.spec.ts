@@ -1,5 +1,7 @@
 import {
+  Logger,
   NotFoundException,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -46,7 +48,11 @@ describe('PublicService', () => {
     client: { serviceRequest: { create, findUnique } },
   } as unknown as PrismaService;
   const reverseGeocode = jest.fn();
-  const geocoding = { reverseGeocode } as unknown as GeocodingService;
+  const forwardGeocode = jest.fn();
+  const geocoding = {
+    reverseGeocode,
+    forwardGeocode,
+  } as unknown as GeocodingService;
   const emit = jest.fn();
   const events = { emit } as unknown as EventEmitter2;
 
@@ -171,6 +177,63 @@ describe('PublicService', () => {
       await expect(
         service.createServiceRequest('nope', VALID_INPUT),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('geocodeAddress (B10)', () => {
+    const MATCH = {
+      latitude: -22.9056,
+      longitude: -47.0608,
+      address: 'Avenida Anchieta, Campinas, SP, Brasil',
+      locality: { city: 'Campinas', state: 'SP', country: 'BR' },
+    };
+
+    it('resolves a typed address to coordinates + normalized address', async () => {
+      forwardGeocode.mockResolvedValue(MATCH);
+
+      await expect(
+        service.geocodeAddress('saae-campinas', 'Avenida Anchieta'),
+      ).resolves.toEqual(MATCH);
+      expect(forwardGeocode).toHaveBeenCalledWith('Avenida Anchieta');
+    });
+
+    it('404s for unknown tenant slugs (no geocoding attempted)', async () => {
+      systemPrisma.tenant.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.geocodeAddress('nope', 'Avenida Anchieta'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(forwardGeocode).not.toHaveBeenCalled();
+    });
+
+    it('422s when the address does not exist', async () => {
+      forwardGeocode.mockResolvedValue(null);
+
+      await expect(
+        service.geocodeAddress('saae-campinas', 'asdfqwerzxcv'),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it('503s when the geocoder is unavailable (retryable)', async () => {
+      forwardGeocode.mockRejectedValue(new Error('network down'));
+
+      await expect(
+        service.geocodeAddress('saae-campinas', 'Avenida Anchieta'),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it('never logs the address (LGPD)', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      forwardGeocode.mockRejectedValue(new Error('network down'));
+      const secret = 'Rua Muito Secreta 123, Bairro Privado';
+
+      await expect(
+        service.geocodeAddress('saae-campinas', secret),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+      for (const call of warn.mock.calls) {
+        expect(JSON.stringify(call)).not.toContain(secret);
+      }
     });
   });
 

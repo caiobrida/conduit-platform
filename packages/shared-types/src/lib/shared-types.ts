@@ -193,11 +193,26 @@ export const protocolLookupSchema = z.object({
 });
 export type ProtocolLookupInput = z.infer<typeof protocolLookupSchema>;
 
+/** Forward-geocoding input: a free-text address typed by the citizen (F4). */
+export const geocodeAddressSchema = z.object({
+  address: z.string().trim().min(3).max(500),
+});
+export type GeocodeAddressInput = z.infer<typeof geocodeAddressSchema>;
+
 /** Locality resolved from coordinates by the reverse geocoder. */
 export interface ResolvedLocality {
   city: string | null;
   state: string | null;
   country: string | null;
+}
+
+/** Result of resolving a free-text address into coordinates (forward geocode). */
+export interface ForwardGeocodeResult {
+  latitude: number;
+  longitude: number;
+  /** Normalized address as returned by the geocoder (display name). */
+  address: string;
+  locality: ResolvedLocality;
 }
 
 // ─── Public payloads (tracking route — minimal payload, no PII) ───────────

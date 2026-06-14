@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -9,6 +10,7 @@ import { runWithTenant, systemPrisma } from '@org/database';
 import {
   Category,
   CreateServiceRequestInput,
+  ForwardGeocodeResult,
   isWithinServiceArea,
   PublicServiceRequest,
   ServiceArea,
@@ -169,6 +171,39 @@ export class PublicService {
       // Unreachable, but keeps the compiler honest.
       throw new Error('Failed to generate a unique protocol');
     });
+  }
+
+  /**
+   * B10: resolve a free-text address into coordinates for the citizen's
+   * manual-address path (F4). Validates the tenant slug (generic 404) and
+   * distinguishes "address does not exist" (422) from "geocoder unavailable"
+   * (503) so the mobile can show the right message and offer a retry. The
+   * address is never logged (LGPD).
+   */
+  async geocodeAddress(
+    slug: string,
+    address: string,
+  ): Promise<ForwardGeocodeResult> {
+    await this.resolveTenant(slug);
+
+    let result: ForwardGeocodeResult | null;
+    try {
+      result = await this.geocoding.forwardGeocode(address);
+    } catch {
+      this.logger.warn('Forward geocoding unavailable (no PII logged)');
+      throw new ServiceUnavailableException({
+        code: 'GEOCODER_UNAVAILABLE',
+        message: 'Address lookup is temporarily unavailable. Please try again.',
+      });
+    }
+
+    if (!result) {
+      throw new UnprocessableEntityException({
+        code: 'ADDRESS_NOT_FOUND',
+        message: 'We could not find that address. Check it and try again.',
+      });
+    }
+    return result;
   }
 
   /**
