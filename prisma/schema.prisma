@@ -52,6 +52,21 @@ enum MediaType {
   @@map("media_type")
 }
 
+enum NotificationRecipient {
+  CITIZEN
+  ADMIN
+
+  @@map("notification_recipient")
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+
+  @@map("notification_status")
+}
+
 model Tenant {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
@@ -60,12 +75,16 @@ model Tenant {
   /// requests from. Null level = unrestricted (validation happens in C8).
   serviceAreaLevel  ServiceAreaLevel? @map("service_area_level")
   serviceAreaValues String[]          @default([]) @map("service_area_values")
-  createdAt DateTime @default(now()) @map("created_at")
+  /// WhatsApp number that receives "new service request" alerts (E4).
+  /// Null = admin notifications disabled for this tenant.
+  notificationPhone String?  @map("notification_phone")
+  createdAt         DateTime @default(now()) @map("created_at")
 
   serviceRequests ServiceRequest[]
   media           Media[]
   statusEvents    StatusEvent[]
   adminUsers      AdminUser[]
+  notifications   Notification[]
 
   @@map("tenants")
 }
@@ -95,9 +114,10 @@ model ServiceRequest {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id])
-  media        Media[]
-  statusEvents StatusEvent[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  media         Media[]
+  statusEvents  StatusEvent[]
+  notifications Notification[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -159,4 +179,33 @@ model AdminUser {
 
   @@index([tenantId])
   @@map("admin_users")
+}
+
+/// Outbound WhatsApp notification audit + idempotency ledger (E5). One row
+/// per (event, recipient); the unique constraint makes redeliveries no-ops.
+/// Stores NO phone number — PII stays on ServiceRequest; the recipient is a
+/// role and the number is resolved at send time.
+model Notification {
+  id               String                @id @default(uuid()) @db.Uuid
+  tenantId         String                @map("tenant_id") @db.Uuid
+  serviceRequestId String                @map("service_request_id") @db.Uuid
+  /// Stable id of the domain event that triggered this notification.
+  eventId   String                @map("event_id")
+  eventType String                @map("event_type")
+  recipient NotificationRecipient
+  status    NotificationStatus    @default(PENDING)
+  /// Provider message id returned by the Evolution API on success.
+  providerMessageId String?  @map("provider_message_id")
+  error             String?
+  attempts          Int      @default(0)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+
+  @@unique([tenantId, eventId, recipient])
+  @@index([tenantId])
+  @@index([serviceRequestId])
+  @@map("notifications")
 }

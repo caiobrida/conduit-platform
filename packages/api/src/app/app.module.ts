@@ -2,8 +2,9 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { HttpThrottlerGuard } from '../common/http-throttler.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv } from '../config/env.schema';
@@ -17,6 +18,7 @@ import { ClerkAuthMiddleware } from '../auth/clerk-auth.middleware';
 import { TenantContextMiddleware } from '../tenant/tenant-context.middleware';
 import { StatusTransitionService } from '../service-requests/status-transition.service';
 import { RedisModule } from '../redis/redis.module';
+import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
   imports: [
@@ -41,6 +43,7 @@ import { RedisModule } from '../redis/redis.module';
       },
     }),
     RedisModule,
+    MessagingModule.register(),
     PrismaModule,
     GeocodingModule,
     AuthModule,
@@ -52,7 +55,7 @@ import { RedisModule } from '../redis/redis.module';
   providers: [
     AppService,
     StatusTransitionService,
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: HttpThrottlerGuard },
   ],
 })
 export class AppModule implements NestModule {

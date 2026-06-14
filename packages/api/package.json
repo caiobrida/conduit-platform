@@ -87,6 +87,7 @@
   },
   "dependencies": {
     "@clerk/backend": "3.7.0",
+    "@golevelup/nestjs-rabbitmq": "9.0.2",
     "@nest-lab/throttler-storage-redis": "1.2.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "4.0.4",
@@ -101,6 +102,7 @@
     "@org/shared-types": "workspace:*",
     "@socket.io/redis-adapter": "8.3.0",
     "@supabase/supabase-js": "2.108.1",
+    "amqplib": "2.0.1",
     "class-transformer": "0.5.1",
     "class-validator": "0.15.1",
     "ioredis": "5.11.1",
@@ -112,6 +114,7 @@
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0",
+    "@types/amqplib": "0.10.8",
     "@types/express": "5.0.6",
     "@types/multer": "2.1.0"
   }
