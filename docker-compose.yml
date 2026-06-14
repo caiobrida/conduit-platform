@@ -1,12 +1,21 @@
-# Local development infrastructure (Redis + RabbitMQ).
+# Local development infrastructure (Redis + RabbitMQ + optional WhatsApp).
 # Database and storage live on Supabase from day one — they are NOT run here.
 #
-# Usage: docker compose up -d
+# Usage:
+#   docker compose up -d                       # Redis + RabbitMQ (default)
+#   docker compose --profile whatsapp up -d    # also the Evolution API stack
 #
 # Service endpoints:
 #   Redis:                localhost:6379  (REDIS_URL=redis://localhost:6379)
 #   RabbitMQ (AMQP):      localhost:5672  (RABBITMQ_URL=amqp://guest:guest@localhost:5672)
 #   RabbitMQ management:  http://localhost:15672  (user: guest / pass: guest)
+#   Evolution API:        http://localhost:8080   (header apikey: EVOLUTION_API_KEY)
+#
+# The Evolution API (self-hosted WhatsApp, Épico E) is DEV ONLY and gated behind
+# the "whatsapp" profile — it is stateful (holds the WhatsApp/Baileys session) and
+# pulls a heavy image, so it stays out of the default `up`. In production it must
+# run on a dedicated always-on host (Railway/Fly/VPS) with persistent storage;
+# the free Render spin-down would drop the WhatsApp session.
 
 services:
   redis:
@@ -31,3 +40,62 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+
+  # --- WhatsApp gateway (Evolution API) — dev only, profile "whatsapp" ---
+  # Reuses the local Redis (logical DB 1, key prefix evolution_v2) and has its
+  # own Postgres for instance/session data — never the app's Supabase database.
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: conduit-evolution
+    profiles: ['whatsapp']
+    restart: unless-stopped
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '8080:8080'
+    environment:
+      SERVER_URL: http://localhost:8080
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-dev-evolution-key-change-me}
+      DATABASE_ENABLED: 'true'
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:evolution@evolution-postgres:5432/evolution
+      DATABASE_CONNECTION_CLIENT_NAME: evolution
+      CACHE_REDIS_ENABLED: 'true'
+      CACHE_REDIS_URI: redis://redis:6379/1
+      CACHE_REDIS_PREFIX_KEY: evolution_v2
+      CACHE_LOCAL_ENABLED: 'false'
+    volumes:
+      - evolution_instances:/evolution/instances
+    healthcheck:
+      # Adjust if the image lacks wget; the depends_on gates startup regardless.
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8080']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  evolution-postgres:
+    image: postgres:16-alpine
+    container_name: conduit-evolution-db
+    profiles: ['whatsapp']
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution
+      POSTGRES_DB: evolution
+    # No host port mapping — internal network only, avoids clashing with a
+    # local Postgres on 5432.
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U evolution']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  evolution_instances:
+  evolution_pgdata:
