@@ -4,6 +4,7 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'Media',
   'StatusEvent',
   'AdminUser',
+  'Notification',
 ]);
 
 const READ_OPS = new Set([

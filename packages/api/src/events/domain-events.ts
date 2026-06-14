@@ -30,3 +30,16 @@ export interface ServiceRequestStatusChangedEvent {
   comment: string | null;
   changedAt: string;
 }
+
+/**
+ * Queue message variants: the RabbitMQ bridge (E1) stamps a stable `eventId`
+ * onto the in-process event before publishing, so consumers can deduplicate
+ * across redeliveries (E5).
+ */
+export interface ServiceRequestCreatedMessage extends ServiceRequestCreatedEvent {
+  eventId: string;
+}
+
+export interface ServiceRequestStatusChangedMessage extends ServiceRequestStatusChangedEvent {
+  eventId: string;
+}

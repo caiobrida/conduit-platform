@@ -61,6 +61,20 @@ describe('applyTenantScope', () => {
     expect(result['update']).toEqual({ tenantId: TENANT });
   });
 
+  it('scopes the Notification model (E5 idempotency ledger)', () => {
+    const result = applyTenantScope(
+      'Notification',
+      'findFirst',
+      { where: { eventId: 'evt-1', recipient: 'CITIZEN' } },
+      TENANT,
+    );
+    expect(result['where']).toEqual({
+      eventId: 'evt-1',
+      recipient: 'CITIZEN',
+      tenantId: TENANT,
+    });
+  });
+
   it('leaves non tenant-scoped models untouched', () => {
     const args = { where: { slug: 'saae' } };
     expect(applyTenantScope('Tenant', 'findFirst', args, TENANT)).toBe(args);

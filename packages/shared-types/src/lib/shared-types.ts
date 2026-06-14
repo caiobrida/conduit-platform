@@ -37,6 +37,22 @@ export const ServiceAreaLevel = {
 export type ServiceAreaLevel =
   (typeof ServiceAreaLevel)[keyof typeof ServiceAreaLevel];
 
+/** Who an outbound WhatsApp notification is addressed to (E4/E5). */
+export const NotificationRecipient = {
+  CITIZEN: 'CITIZEN',
+  ADMIN: 'ADMIN',
+} as const;
+export type NotificationRecipient =
+  (typeof NotificationRecipient)[keyof typeof NotificationRecipient];
+
+export const NotificationStatus = {
+  PENDING: 'PENDING',
+  SENT: 'SENT',
+  FAILED: 'FAILED',
+} as const;
+export type NotificationStatus =
+  (typeof NotificationStatus)[keyof typeof NotificationStatus];
+
 // ─── Domain interfaces ────────────────────────────────────────────────────
 
 /**
@@ -121,6 +137,22 @@ export interface AdminUser {
   clerkUserId: string;
   role: AdminRole;
   createdAt: string;
+}
+
+/** Outbound WhatsApp notification record (audit + idempotency, no phone). */
+export interface Notification {
+  id: string;
+  tenantId: string;
+  serviceRequestId: string;
+  eventId: string;
+  eventType: string;
+  recipient: NotificationRecipient;
+  status: NotificationStatus;
+  providerMessageId: string | null;
+  error: string | null;
+  attempts: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────

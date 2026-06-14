@@ -25,6 +25,13 @@ export const envSchema = z
     EVOLUTION_API_KEY: z.string().min(1).optional(),
     /** Evolution instance the app sends WhatsApp messages from (dev: caiotest). */
     EVOLUTION_INSTANCE: z.string().min(1).optional(),
+    /** Use amqps:// (TLS) in production — e.g. CloudAMQP. Optional in dev. */
+    RABBITMQ_URL: z
+      .string()
+      .regex(/^amqps?:\/\//, 'Must be an amqp:// or amqps:// URL')
+      .optional(),
+    /** Public base URL for the citizen tracking link in WhatsApp messages. */
+    PUBLIC_TRACKING_BASE_URL: z.string().url().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') {
@@ -38,6 +45,7 @@ export const envSchema = z
       'EVOLUTION_API_URL',
       'EVOLUTION_API_KEY',
       'EVOLUTION_INSTANCE',
+      'RABBITMQ_URL',
     ] as const) {
       if (!env[key]) {
         ctx.addIssue({
