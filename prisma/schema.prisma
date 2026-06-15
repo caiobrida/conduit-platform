@@ -78,6 +78,9 @@ model Tenant {
   /// WhatsApp number that receives "new service request" alerts (E4).
   /// Null = admin notifications disabled for this tenant.
   notificationPhone String?  @map("notification_phone")
+  /// Soft delete: false suspends the tenant (e.g. non-payment) — all access
+  /// stops (admin login, WebSocket, public endpoints) without losing data.
+  active            Boolean  @default(true)
   createdAt         DateTime @default(now()) @map("created_at")
 
   serviceRequests ServiceRequest[]
@@ -111,6 +114,10 @@ model ServiceRequest {
   /// search/sort on these fields (spec §9). Protected by RLS + access control.
   reporterName  String   @map("reporter_name")
   reporterPhone String   @map("reporter_phone")
+  /// Soft delete: false hides the request (e.g. spam/duplicate) from the
+  /// admin queue and public tracking. Filtered automatically on tenant-scoped
+  /// reads by the Prisma extension (see SOFT_DELETE_MODELS).
+  active        Boolean  @default(true)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -173,6 +180,9 @@ model AdminUser {
   tenantId    String    @map("tenant_id") @db.Uuid
   clerkUserId String    @unique @map("clerk_user_id")
   role        AdminRole @default(OPERATOR)
+  /// Soft delete: false revokes this admin's access (e.g. offboarding) without
+  /// deleting the row. Enforced in the auth middleware and WebSocket handshake.
+  active      Boolean   @default(true)
   createdAt   DateTime  @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])

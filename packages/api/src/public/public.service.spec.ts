@@ -16,13 +16,13 @@ jest.mock('@org/database', () => {
   const actual = jest.requireActual('@org/database');
   return {
     ...actual,
-    systemPrisma: { tenant: { findUnique: jest.fn() } },
+    systemPrisma: { tenant: { findFirst: jest.fn() } },
   };
 });
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { systemPrisma } = require('@org/database') as {
-  systemPrisma: { tenant: { findUnique: jest.Mock } };
+  systemPrisma: { tenant: { findFirst: jest.Mock } };
 };
 
 const TENANT = {
@@ -30,6 +30,7 @@ const TENANT = {
   slug: 'saae-campinas',
   serviceAreaLevel: ServiceAreaLevel.CITY,
   serviceAreaValues: ['Campinas'],
+  active: true,
 };
 
 const VALID_INPUT = {
@@ -67,7 +68,7 @@ describe('PublicService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    systemPrisma.tenant.findUnique.mockResolvedValue(TENANT);
+    systemPrisma.tenant.findFirst.mockResolvedValue(TENANT);
     create.mockImplementation(async ({ data, select: _select }) => ({
       id: 'sr-1',
       protocol: data.protocol,
@@ -173,10 +174,23 @@ describe('PublicService', () => {
     });
 
     it('404s for unknown tenant slugs without revealing details', async () => {
-      systemPrisma.tenant.findUnique.mockResolvedValue(null);
+      systemPrisma.tenant.findFirst.mockResolvedValue(null);
       await expect(
         service.createServiceRequest('nope', VALID_INPUT),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('resolves only active tenants (soft delete) — inactive ones 404', async () => {
+      // The query filters by active: true, so a suspended tenant returns null.
+      systemPrisma.tenant.findFirst.mockResolvedValue(null);
+      await expect(
+        service.createServiceRequest('saae-campinas', VALID_INPUT),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(systemPrisma.tenant.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { slug: 'saae-campinas', active: true },
+        }),
+      );
     });
   });
 
@@ -198,7 +212,7 @@ describe('PublicService', () => {
     });
 
     it('404s for unknown tenant slugs (no geocoding attempted)', async () => {
-      systemPrisma.tenant.findUnique.mockResolvedValue(null);
+      systemPrisma.tenant.findFirst.mockResolvedValue(null);
 
       await expect(
         service.geocodeAddress('nope', 'Avenida Anchieta'),

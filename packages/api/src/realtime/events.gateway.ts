@@ -8,6 +8,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { systemPrisma } from '@org/database';
 import { ClerkTokenVerifier } from '../auth/clerk-token.verifier';
+import { activeAdminWhere } from '../auth/active-admin.query';
 import {
   SERVICE_REQUEST_CREATED,
   SERVICE_REQUEST_STATUS_CHANGED,
@@ -48,8 +49,10 @@ export class EventsGateway implements OnGatewayConnection {
       return;
     }
 
-    const adminUser = await systemPrisma.adminUser.findUnique({
-      where: { clerkUserId: verified.clerkUserId },
+    // Soft delete: reject sockets from deactivated admins or suspended tenants.
+    const adminUser = await systemPrisma.adminUser.findFirst({
+      where: activeAdminWhere(verified.clerkUserId),
+      select: { tenantId: true },
     });
     if (!adminUser) {
       socket.disconnect(true);

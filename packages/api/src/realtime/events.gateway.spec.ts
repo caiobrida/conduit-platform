@@ -6,13 +6,13 @@ jest.mock('@org/database', () => {
   const actual = jest.requireActual('@org/database');
   return {
     ...actual,
-    systemPrisma: { adminUser: { findUnique: jest.fn() } },
+    systemPrisma: { adminUser: { findFirst: jest.fn() } },
   };
 });
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { systemPrisma } = require('@org/database') as {
-  systemPrisma: { adminUser: { findUnique: jest.Mock } };
+  systemPrisma: { adminUser: { findFirst: jest.Mock } };
 };
 
 const makeSocket = (token?: string) =>
@@ -42,18 +42,26 @@ describe('EventsGateway (C7)', () => {
     expect(socket.join).not.toHaveBeenCalled();
   });
 
-  it('disconnects authenticated users that are not admins', async () => {
+  it('disconnects authenticated users that are not active admins (incl. deactivated/suspended)', async () => {
     verify.mockResolvedValue({ clerkUserId: 'user_x' });
-    systemPrisma.adminUser.findUnique.mockResolvedValue(null);
+    systemPrisma.adminUser.findFirst.mockResolvedValue(null);
     const socket = makeSocket('valid');
     await gateway.handleConnection(socket);
     expect(socket.disconnect).toHaveBeenCalledWith(true);
+    expect(systemPrisma.adminUser.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          clerkUserId: 'user_x',
+          active: true,
+          tenant: { is: { active: true } },
+        },
+      }),
+    );
   });
 
   it('joins exactly the tenant room of the admin (isolation)', async () => {
     verify.mockResolvedValue({ clerkUserId: 'user_1' });
-    systemPrisma.adminUser.findUnique.mockResolvedValue({
-      id: 'admin-1',
+    systemPrisma.adminUser.findFirst.mockResolvedValue({
       tenantId: 'tenant-a',
     });
     const socket = makeSocket('valid');
