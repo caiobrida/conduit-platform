@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Get,
   HttpCode,
@@ -21,16 +20,8 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { MEDIA_LIMITS } from '@org/shared-types';
-import { z } from 'zod';
 import { AdminGuard } from '../auth/admin.guard';
-import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { MediaService } from './media.service';
-
-const uploadBodySchema = z.object({
-  /** Client-reported duration; re-validated against the 10s cap (C9). */
-  durationSeconds: z.coerce.number().int().positive().max(600).optional(),
-});
-type UploadBody = z.infer<typeof uploadBodySchema>;
 
 @ApiTags('public')
 @Controller('public/:tenantSlug/service-requests/:protocol/media')
@@ -50,10 +41,7 @@ export class PublicMediaController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties: {
-        file: { type: 'string', format: 'binary' },
-        durationSeconds: { type: 'number', example: 8 },
-      },
+      properties: { file: { type: 'string', format: 'binary' } },
       required: ['file'],
     },
   })
@@ -63,14 +51,11 @@ export class PublicMediaController {
     @Param('tenantSlug') tenantSlug: string,
     @Param('protocol') protocol: string,
     @UploadedFile() file: Express.Multer.File,
-    @Body(new ZodValidationPipe(uploadBodySchema)) body: UploadBody,
   ) {
-    return this.media.attach(
-      tenantSlug,
-      protocol,
-      { buffer: file.buffer, size: file.size },
-      body.durationSeconds,
-    );
+    return this.media.attach(tenantSlug, protocol, {
+      buffer: file.buffer,
+      size: file.size,
+    });
   }
 }
 

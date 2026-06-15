@@ -10,6 +10,10 @@ import { MEDIA_LIMITS, MediaType } from '@org/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
 import { detectMediaKind, validateMediaLimits } from './media-validation';
+import {
+  measureVideoDurationSeconds,
+  stripImageMetadata,
+} from './media-sanitize';
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -35,7 +39,6 @@ export class MediaService {
     tenantSlug: string,
     protocol: string,
     file: { buffer: Buffer; size: number },
-    durationSeconds: number | undefined,
   ) {
     if (!this.storage.isConfigured) {
       throw new ServiceUnavailableException('Media uploads are unavailable');
@@ -49,11 +52,32 @@ export class MediaService {
     }
 
     const detected = detectMediaKind(file.buffer);
-    const rejection = validateMediaLimits(detected, file.size, durationSeconds);
-    if (rejection || !detected) {
+    if (!detected) {
       throw new BadRequestException({
-        code: rejection ?? 'UNSUPPORTED_TYPE',
-        message: this.rejectionMessage(rejection ?? 'UNSUPPORTED_TYPE'),
+        code: 'UNSUPPORTED_TYPE',
+        message: this.rejectionMessage('UNSUPPORTED_TYPE'),
+      });
+    }
+
+    // C9: enforce the duration cap from the real file, not a client-reported
+    // value — measured from the MP4/MOV header, no transcode.
+    let durationSeconds: number | undefined;
+    if (detected.type === MediaType.VIDEO) {
+      const measured = measureVideoDurationSeconds(file.buffer);
+      if (measured === null) {
+        throw new BadRequestException({
+          code: 'VIDEO_DURATION_UNREADABLE',
+          message: this.rejectionMessage('VIDEO_DURATION_UNREADABLE'),
+        });
+      }
+      durationSeconds = measured;
+    }
+
+    const rejection = validateMediaLimits(detected, file.size, durationSeconds);
+    if (rejection) {
+      throw new BadRequestException({
+        code: rejection,
+        message: this.rejectionMessage(rejection),
       });
     }
 
@@ -75,7 +99,13 @@ export class MediaService {
       const extension = EXTENSION_BY_MIME[detected.mimeType];
       const storagePath = `${tenant.id}/${request.id}/${randomUUID()}.${extension}`;
 
-      await this.storage.upload(storagePath, file.buffer, detected.mimeType);
+      // C2/§9: strip EXIF/GPS from photos before persisting (no re-encode).
+      const payload =
+        detected.type === MediaType.PHOTO
+          ? stripImageMetadata(file.buffer, detected.mimeType)
+          : file.buffer;
+
+      await this.storage.upload(storagePath, payload, detected.mimeType);
 
       const media = await this.prisma.client.media.create({
         data: {
@@ -84,11 +114,9 @@ export class MediaService {
           type: detected.type,
           storagePath,
           mimeType: detected.mimeType,
-          sizeBytes: file.size,
+          sizeBytes: payload.length,
           durationSeconds:
-            detected.type === MediaType.VIDEO
-              ? (durationSeconds ?? null)
-              : null,
+            durationSeconds !== undefined ? Math.round(durationSeconds) : null,
         },
         select: { id: true, type: true, mimeType: true, createdAt: true },
       });
@@ -120,6 +148,8 @@ export class MediaService {
         return `Videos must be at most ${MEDIA_LIMITS.VIDEO_MAX_SECONDS} seconds long.`;
       case 'VIDEO_DURATION_REQUIRED':
         return 'Video duration is required.';
+      case 'VIDEO_DURATION_UNREADABLE':
+        return 'Could not read the video duration. Please re-record and try again.';
       default:
         return 'Unsupported file type. Use JPEG/PNG/WebP photos or MP4/QuickTime videos.';
     }
