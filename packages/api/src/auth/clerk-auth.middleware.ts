@@ -4,6 +4,7 @@ import { RequestWithAdmin } from './authenticated-admin';
 import { runWithTenant, systemPrisma } from '@org/database';
 import { AdminRole } from '@org/shared-types';
 import { ClerkTokenVerifier } from './clerk-token.verifier';
+import { activeAdminWhere } from './active-admin.query';
 
 /**
  * Authenticates admin routes (C6): validates the Clerk JWT, resolves the
@@ -31,8 +32,11 @@ export class ClerkAuthMiddleware implements NestMiddleware {
       return next();
     }
 
-    const adminUser = await systemPrisma.adminUser.findUnique({
-      where: { clerkUserId: verified.clerkUserId },
+    // Soft delete: only an active admin of an active tenant is authenticated;
+    // a deactivated admin (or suspended tenant) falls through to a 401.
+    const adminUser = await systemPrisma.adminUser.findFirst({
+      where: activeAdminWhere(verified.clerkUserId),
+      select: { id: true, clerkUserId: true, tenantId: true, role: true },
     });
     if (!adminUser) {
       return next();

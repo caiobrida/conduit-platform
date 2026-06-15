@@ -10,13 +10,13 @@ jest.mock('@org/database', () => {
   const actual = jest.requireActual('@org/database');
   return {
     ...actual,
-    systemPrisma: { adminUser: { findUnique: jest.fn() } },
+    systemPrisma: { adminUser: { findFirst: jest.fn() } },
   };
 });
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { systemPrisma } = require('@org/database') as {
-  systemPrisma: { adminUser: { findUnique: jest.Mock } };
+  systemPrisma: { adminUser: { findFirst: jest.Mock } };
 };
 
 const makeReq = (authorization?: string) =>
@@ -48,18 +48,35 @@ describe('ClerkAuthMiddleware', () => {
     });
   });
 
-  it('passes through when the Clerk user has no AdminUser', async () => {
+  it('passes through when there is no active AdminUser (unknown, deactivated, or suspended tenant)', async () => {
+    // The active-admin filter excludes inactive admins and suspended tenants,
+    // so all three collapse to "no row" here.
     verify.mockResolvedValue({ clerkUserId: 'user_stranger' });
-    systemPrisma.adminUser.findUnique.mockResolvedValue(null);
+    systemPrisma.adminUser.findFirst.mockResolvedValue(null);
     const req = makeReq('Bearer valid');
     await middleware.use(req, res, () => {
       expect(req.admin).toBeUndefined();
     });
   });
 
+  it('looks up only active admins of active tenants (soft delete)', async () => {
+    verify.mockResolvedValue({ clerkUserId: 'user_1' });
+    systemPrisma.adminUser.findFirst.mockResolvedValue(null);
+    await middleware.use(makeReq('Bearer valid'), res, () => undefined);
+    expect(systemPrisma.adminUser.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          clerkUserId: 'user_1',
+          active: true,
+          tenant: { is: { active: true } },
+        },
+      }),
+    );
+  });
+
   it('attaches the admin and binds the tenant context on success', async () => {
     verify.mockResolvedValue({ clerkUserId: 'user_1' });
-    systemPrisma.adminUser.findUnique.mockResolvedValue({
+    systemPrisma.adminUser.findFirst.mockResolvedValue({
       id: 'admin-1',
       clerkUserId: 'user_1',
       tenantId: 'tenant-a',

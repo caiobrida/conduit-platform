@@ -7,6 +7,16 @@ export const TENANT_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'Notification',
 ]);
 
+/**
+ * Models with an `active` soft-delete flag: reads filter out inactive rows
+ * automatically, so a soft-deleted record is invisible everywhere without
+ * touching each call-site. Writes are NOT filtered, so an update can still
+ * reach an inactive row to reactivate it (or deactivate an active one).
+ */
+export const SOFT_DELETE_MODELS: ReadonlySet<string> = new Set([
+  'ServiceRequest',
+]);
+
 const READ_OPS = new Set([
   'findFirst',
   'findFirstOrThrow',
@@ -40,6 +50,11 @@ export function applyTenantScope(
 
   if (READ_OPS.has(operation) || WRITE_OPS.has(operation)) {
     scoped['where'] = { ...((scoped['where'] as object) ?? {}), tenantId };
+  }
+  // Soft delete: hide inactive rows on reads only (writes must still reach
+  // them to toggle `active`).
+  if (READ_OPS.has(operation) && SOFT_DELETE_MODELS.has(model)) {
+    scoped['where'] = { ...((scoped['where'] as object) ?? {}), active: true };
   }
   if (CREATE_OPS.has(operation)) {
     if (Array.isArray(scoped['data'])) {

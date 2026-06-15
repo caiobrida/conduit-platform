@@ -59,8 +59,10 @@ export class PublicService {
       return cached;
     }
 
-    const tenant = await systemPrisma.tenant.findUnique({
-      where: { slug },
+    // Soft delete: an inactive (suspended) tenant resolves to nothing, so all
+    // public endpoints (create/track/geocode) 404 just like an unknown slug.
+    const tenant = await systemPrisma.tenant.findFirst({
+      where: { slug, active: true },
       select: {
         id: true,
         slug: true,
@@ -69,8 +71,9 @@ export class PublicService {
       },
     });
     if (!tenant) {
-      // Generic 404: do not reveal which slugs exist. Misses are NOT cached
-      // so a tenant created later is visible immediately.
+      // Generic 404: do not reveal which slugs exist. Misses (incl. inactive
+      // tenants) are NOT cached, so a tenant created/reactivated later is
+      // visible immediately.
       throw new NotFoundException();
     }
 

@@ -70,6 +70,8 @@ export interface Tenant {
   name: string;
   slug: string;
   serviceArea: ServiceArea | null;
+  /** Soft delete: false suspends the tenant (e.g. non-payment). */
+  active: boolean;
   createdAt: string;
 }
 
@@ -89,6 +91,8 @@ export interface ServiceRequest {
   country: string | null;
   reporterName: string;
   reporterPhone: string;
+  /** Soft delete: false hides the request from the queue and tracking. */
+  active: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -136,6 +140,8 @@ export interface AdminUser {
   tenantId: string;
   clerkUserId: string;
   role: AdminRole;
+  /** Soft delete: false revokes this admin's access without deleting the row. */
+  active: boolean;
   createdAt: string;
 }
 

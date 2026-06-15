@@ -9,13 +9,14 @@ const TENANT = 'tenant-a';
 
 describe('applyTenantScope', () => {
   it('injects tenantId into where on reads', () => {
+    // StatusEvent is tenant-scoped but NOT soft-delete, so only tenantId.
     const result = applyTenantScope(
-      'ServiceRequest',
+      'StatusEvent',
       'findMany',
-      { where: { status: 'OPEN' } },
+      { where: { newStatus: 'OPEN' } },
       TENANT,
     );
-    expect(result['where']).toEqual({ status: 'OPEN', tenantId: TENANT });
+    expect(result['where']).toEqual({ newStatus: 'OPEN', tenantId: TENANT });
   });
 
   it('injects tenantId into where on writes', () => {
@@ -78,6 +79,56 @@ describe('applyTenantScope', () => {
   it('leaves non tenant-scoped models untouched', () => {
     const args = { where: { slug: 'saae' } };
     expect(applyTenantScope('Tenant', 'findFirst', args, TENANT)).toBe(args);
+  });
+
+  describe('soft delete (active)', () => {
+    it('injects active: true on ServiceRequest reads', () => {
+      const result = applyTenantScope(
+        'ServiceRequest',
+        'findMany',
+        { where: { status: 'OPEN' } },
+        TENANT,
+      );
+      expect(result['where']).toEqual({
+        status: 'OPEN',
+        tenantId: TENANT,
+        active: true,
+      });
+    });
+
+    it('injects active: true on findUnique reads (e.g. by protocol)', () => {
+      const result = applyTenantScope(
+        'ServiceRequest',
+        'findUnique',
+        { where: { protocol: 'ABCDEFGH2345' } },
+        TENANT,
+      );
+      expect(result['where']).toEqual({
+        protocol: 'ABCDEFGH2345',
+        tenantId: TENANT,
+        active: true,
+      });
+    });
+
+    it('does NOT inject active on writes (so toggling active can reach the row)', () => {
+      const result = applyTenantScope(
+        'ServiceRequest',
+        'update',
+        { where: { id: 'sr-1' }, data: { active: false } },
+        TENANT,
+      );
+      expect(result['where']).toEqual({ id: 'sr-1', tenantId: TENANT });
+    });
+
+    it('does NOT inject active on tenant-scoped models without the flag', () => {
+      const result = applyTenantScope(
+        'StatusEvent',
+        'findMany',
+        { where: {} },
+        TENANT,
+      );
+      expect(result['where']).toEqual({ tenantId: TENANT });
+    });
   });
 });
 
